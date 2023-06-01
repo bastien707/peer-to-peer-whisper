@@ -1,3 +1,4 @@
+import javax.swing.plaf.TableHeaderUI;
 import java.io.IOException;
 import java.net.*;
 import java.util.ArrayList;
@@ -15,22 +16,11 @@ public class Node {
         this.name = name;
         this.socket = new DatagramSocket();
         this.nodes = new HashMap<>();
-        this.port = getRandomPort();
-    }
-
-    public String getName() {
-        return name;
-    }
-
-    public static int getRandomPort() {
-        try (ServerSocket s = new ServerSocket(0)) {
-            return s.getLocalPort();
-        } catch (IOException e) {
-            throw new RuntimeException("Can't get random port");
-        }
+        this.port = 0;
     }
 
     public void sendInformationToServer(Node n) throws IOException {
+        System.out.println("#Connecting to server...");
         byte[] buffer = (name + ":" + n.port).getBytes();
         InetAddress address = InetAddress.getByName("localhost");
         DatagramPacket packet = new DatagramPacket(buffer, buffer.length, address, 5000);
@@ -44,16 +34,16 @@ public class Node {
         socket.send(packet);
     }
 
-    public void startListening(int port) {
+    public void startListening(DatagramSocket receiveSocket) {
         new Thread(() -> {
             try {
                 byte[] buffer = new byte[1024];
                 DatagramPacket packet = new DatagramPacket(buffer, buffer.length);
-                DatagramSocket receiveSocket = new DatagramSocket(port);
                 while (true) {
                     receiveSocket.receive(packet);
                     String message = new String(packet.getData(), 0, packet.getLength());
                     if(packet.getPort() == 5000) {
+                        System.out.println("#You are now connected to the network");
                         nodeNamesToHashMap(message);
                         System.out.println("Server:" + nodes);
                     } else {
@@ -85,8 +75,10 @@ public class Node {
         Scanner scanner = new Scanner(System.in);
         String name = scanner.nextLine();
         Node n = new Node(name);
-        n.startListening(n.port);
-        System.out.println("#You are now connected to the network" + "\n" + "Your port is: " + n.port);
+        DatagramSocket receiveSocket = new DatagramSocket(0); // 0 means any random available port
+        n.port = receiveSocket.getLocalPort();
+        System.out.println("#Your port is " + n.port);
+        n.startListening(receiveSocket);
         n.sendInformationToServer(n); // send information to server
         while (true) {
             String message = scanner.nextLine();

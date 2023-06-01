@@ -27,10 +27,10 @@ public class Server {
                     socket.receive(packet);
                     String message = new String(packet.getData(), 0, packet.getLength());
                     String[] parts = message.split(":");
-
                     if(nodeNames.size() >= 10) {
                         System.out.println("Maximum number of nodes reached");
                     } else {
+                        System.out.println("Node " + parts[0] + " connected on port " + parts[1]);
                         nodeNames.put(Integer.parseInt(parts[1]), parts[0]);
                         System.out.println(nodeNames);
                         sendNodeNamesToNodes();
