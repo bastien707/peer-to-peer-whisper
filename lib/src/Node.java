@@ -1,15 +1,12 @@
-import javax.swing.plaf.TableHeaderUI;
 import java.io.IOException;
 import java.net.*;
-import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Scanner;
 
 public class Node {
     private String name;
     private DatagramSocket socket;
-    private HashMap<Integer, String> nodes;
+    private HashMap<String, Integer> nodes;
     private int port;
 
     public Node(String name) throws SocketException {
@@ -19,7 +16,7 @@ public class Node {
         this.port = 0;
     }
 
-    public void sendInformationToServer(Node n) throws IOException {
+    public void connect(Node n) throws IOException {
         System.out.println("#Connecting to server...");
         byte[] buffer = (name + ":" + n.port).getBytes();
         InetAddress address = InetAddress.getByName("localhost");
@@ -60,13 +57,13 @@ public class Node {
         String[] nodes = message.split(",");
         for (String node: nodes) {
             String[] nodeInfo = node.split(":");
-            this.nodes.put(Integer.parseInt(nodeInfo[1]), nodeInfo[0]);
+            this.nodes.put(nodeInfo[0], Integer.parseInt(nodeInfo[1]));
         }
     }
 
     public void sendToAllNodes(String message) throws IOException {
-        for (int port: nodes.keySet()) {
-            sendMessage(message, port, name);
+        for (String port: nodes.keySet()) {
+            sendMessage(message, nodes.get(port), name);
         }
     }
 
@@ -79,7 +76,7 @@ public class Node {
         n.port = receiveSocket.getLocalPort();
         System.out.println("#Your port is " + n.port);
         n.startListening(receiveSocket);
-        n.sendInformationToServer(n); // send information to server
+        n.connect(n); // send information to server
         while (true) {
             String message = scanner.nextLine();
             try {

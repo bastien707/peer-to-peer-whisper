@@ -1,19 +1,18 @@
 import java.io.IOException;
 import java.net.*;
 import java.net.UnknownHostException;
-import java.util.ArrayList;
 import java.util.HashMap;
 
 public class Server {
      private final InetAddress address;
      private final int port;
      private final DatagramSocket socket;
-     private HashMap<Integer, String> nodeNames; // map of node names and ports
+    private HashMap<String, Integer> nodes;
 
      public Server() throws UnknownHostException, SocketException {
          this.address = InetAddress.getByName("localhost");
          this.port = 5000;
-         this.nodeNames = new HashMap<Integer, String>();
+         this.nodes = new HashMap<>();
          this.socket = new DatagramSocket(port);
          System.out.println("Server started at " + this.address + ":" + this.port);
      }
@@ -27,13 +26,13 @@ public class Server {
                     socket.receive(packet);
                     String message = new String(packet.getData(), 0, packet.getLength());
                     String[] parts = message.split(":");
-                    if(nodeNames.size() >= 10) {
+                    if(nodes.size() >= 10) {
                         System.out.println("Maximum number of nodes reached");
                     } else {
                         System.out.println("Node " + parts[0] + " connected on port " + parts[1]);
-                        nodeNames.put(Integer.parseInt(parts[1]), parts[0]);
-                        System.out.println(nodeNames);
-                        sendNodeNamesToNodes();
+                        nodes.put(parts[0], Integer.parseInt(parts[1]));
+                        System.out.println(nodes);
+                        sendNodeStringNamesToNode();
                     }
                 }
             } catch (IOException e) {
@@ -42,19 +41,19 @@ public class Server {
         }).start();
     }
 
-    public void sendNodeNamesToNodes() throws IOException {
+    public void sendNodeStringNamesToNode() throws IOException {
         StringBuilder message = new StringBuilder();
-        for (Integer p : nodeNames.keySet()) {
+        for (String name : nodes.keySet()) {
             // get the node name and port and append to message
-            message.append(nodeNames.get(p)).append(":").append(p).append(",");
+            message.append(name).append(":").append(nodes.get(name)).append(",");
         }
-        System.out.println(message);
-        for (Integer port : nodeNames.keySet()) {
+        for (String name : nodes.keySet()) {
             byte[] buffer = message.toString().getBytes();
-            DatagramPacket packet = new DatagramPacket(buffer, buffer.length, address, port);
+            DatagramPacket packet = new DatagramPacket(buffer, buffer.length, address, nodes.get(name));
             socket.send(packet);
         }
     }
+
 
     public static void main(String[] args) throws UnknownHostException, SocketException {
         Server server = new Server();
