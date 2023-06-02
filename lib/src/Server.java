@@ -5,16 +5,15 @@ import java.util.HashMap;
 
 public class Server {
      private final InetAddress address;
-     private final int port;
-     private final DatagramSocket socket;
-    private HashMap<String, Integer> nodes;
+    private final DatagramSocket socket;
+     private HashMap<String, Integer> nodes;
 
      public Server() throws UnknownHostException, SocketException {
          this.address = InetAddress.getByName("localhost");
-         this.port = 5000;
+         int port = 5000;
          this.nodes = new HashMap<>();
          this.socket = new DatagramSocket(port);
-         System.out.println("Server started at " + this.address + ":" + this.port);
+         System.out.println("Server started at " + this.address + ":" + port);
      }
 
     public void startListening() {
@@ -25,14 +24,18 @@ public class Server {
                 while (true) {
                     socket.receive(packet);
                     String message = new String(packet.getData(), 0, packet.getLength());
-                    String[] parts = message.split(":");
-                    if(nodes.size() >= 10) {
-                        System.out.println("Maximum number of nodes reached");
+                    Message msgObj = Message.fromString(message);
+                    if (msgObj.type().equals("CONNEXION_REQUEST")) {
+                        nodes.put(msgObj.sender(), packet.getPort());
+                        Message.sendMessageObject(this.socket, new Message("CONNEXION_ACCEPTED", "Server", Utils.hashMapToString(nodes), null), packet.getPort());
+                        System.out.println("#" + msgObj.sender() + " has joined the network");
+                        System.out.println("Nodes: " + nodes);
+                    } else if (msgObj.type().equals("DISCONNECT")) {
+                        nodes.remove(msgObj.sender());
+                        System.out.println("#" + msgObj.sender() + " has left the network");
+                        System.out.println("Nodes: " + nodes);
                     } else {
-                        System.out.println("Node " + parts[0] + " connected on port " + parts[1]);
-                        nodes.put(parts[0], Integer.parseInt(parts[1]));
-                        System.out.println(nodes);
-                        sendNodeStringNamesToNode();
+                        System.out.println("MESSAGE NOT RECOGNIZED");
                     }
                 }
             } catch (IOException e) {
@@ -40,20 +43,6 @@ public class Server {
             }
         }).start();
     }
-
-    public void sendNodeStringNamesToNode() throws IOException {
-        StringBuilder message = new StringBuilder();
-        for (String name : nodes.keySet()) {
-            // get the node name and port and append to message
-            message.append(name).append(":").append(nodes.get(name)).append(",");
-        }
-        for (String name : nodes.keySet()) {
-            byte[] buffer = message.toString().getBytes();
-            DatagramPacket packet = new DatagramPacket(buffer, buffer.length, address, nodes.get(name));
-            socket.send(packet);
-        }
-    }
-
 
     public static void main(String[] args) throws UnknownHostException, SocketException {
         Server server = new Server();

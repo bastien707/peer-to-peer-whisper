@@ -2,6 +2,7 @@ import java.io.IOException;
 import java.net.*;
 import java.util.HashMap;
 import java.util.Scanner;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 public class Node {
     private final String name;
@@ -18,59 +19,83 @@ public class Node {
         this.vc = new VectorClock(name);
     }
 
+    /**
+     * Connect to the network by sending a CONNEXION_REQUEST message to the auth server
+     * @throws IOException if the socket is not valid
+     */
     public void connect() throws IOException {
-        System.out.println("#Connecting to server...");
-        byte[] buffer = (this.name + ":" + this.socket.getLocalPort()).getBytes();
-        InetAddress address = InetAddress.getByName("localhost");
-        DatagramPacket packet = new DatagramPacket(buffer, buffer.length, address, 5000);
-        socket.send(packet);
+        System.out.println("#Connecting to the network...");
+        Message newMessage = new Message("CONNEXION_REQUEST", name, null, null);
+        Message.sendMessageObject(this.socket, newMessage,5000);
     }
 
-    public void sendMessage(String message, int port, String name) throws IOException {
-        byte[] buffer = (name + ":" + message).getBytes();
-        InetAddress address = InetAddress.getByName("localhost");
-        DatagramPacket packet = new DatagramPacket(buffer, buffer.length, address, port);
-        socket.send(packet);
+    /**
+     * Disconnect from the network
+     * @throws IOException if the socket cannot be closed
+     */
+    public void disconnect() throws IOException {
+        System.out.println("#Disconnecting from the network...");
+        Message newMessage = new Message("DISCONNECT", name, Utils.hashMapToString(nodes), null);
+        Message.sendMessageObject(this.socket, newMessage,5000);
+        Message.sendToAllNodes(this.socket, newMessage, nodes);
+        this.socket.close();
     }
 
+    /**
+     * Send a message to a specific node
+     */
     public void startListening() {
+        AtomicBoolean shouldCloseSocket = new AtomicBoolean(false);
         new Thread(() -> {
             try {
                 byte[] buffer = new byte[1024];
                 DatagramPacket packet = new DatagramPacket(buffer, buffer.length);
-                while (true) {
+                while (!shouldCloseSocket.get()) {
                     socket.receive(packet);
                     String message = new String(packet.getData(), 0, packet.getLength());
-                    if(packet.getPort() == 5000) {
-                        System.out.println("#You are now connected to the network");
-                        nodeNamesToHashMap(message);
-                        System.out.println("Server:" + nodes);
-                    } else {
-                        System.out.println(message);
+                    Message msgObj = Message.fromString(message);
+                    switch (msgObj.type()) {
+                        case "CONNEXION_ACCEPTED" -> {
+                            System.out.println("#You are now connected to the network");
+                            updateNodesFromMessage(msgObj.content());
+                            Message.sendToAllNodes(this.socket, new Message("NEW_PEER", this.name, Utils.hashMapToString(nodes), vc), nodes);
+                        }
+                        case "MESSAGE" -> System.out.println(msgObj.sender() + ":" + msgObj.content());
+                        case "NEW_PEER" -> {
+                            System.out.println("#" + msgObj.sender() + " has joined the network");
+                            updateNodesFromMessage(msgObj.content());
+                        }
+                        case "DISCONNECT" -> {
+                            System.out.println("#" + msgObj.sender() + " has left the network");
+                            nodes.remove(msgObj.sender());
+                            // must close socket if the sender is the one who left
+                            if (msgObj.sender().equals(this.name)) {
+                                shouldCloseSocket.set(true);
+                            }
+                        }
+                        default -> System.out.println("MESSAGE NOT RECOGNIZED");
                     }
                 }
             } catch (IOException e) {
                 e.printStackTrace();
+            } finally {
+                if (shouldCloseSocket.get()) {
+                    socket.close();
+                }
             }
         }).start();
     }
 
-    public void nodeNamesToHashMap(String message) {
+    /**
+     * Update the nodes HashMap from a received message
+     * @param message the message containing the nodes
+     */
+    public void updateNodesFromMessage(String message) {
         String[] nodes = message.split(",");
         for (String node: nodes) {
-            String[] nodeInfo = node.split(":");
+            String[] nodeInfo = node.split("=");
             this.nodes.put(nodeInfo[0], Integer.parseInt(nodeInfo[1]));
         }
-    }
-
-    public void sendToAllNodes(String message) throws IOException {
-        for (String port: nodes.keySet()) {
-            sendMessage(message, nodes.get(port), name);
-        }
-    }
-
-    public void incrementVectorClock() {
-        vc.increment(name);
     }
 
     @Override
@@ -88,18 +113,19 @@ public class Node {
         System.out.println("#Enter your name: ");
         Scanner scanner = new Scanner(System.in);
         String name = scanner.nextLine();
-        Node n = new Node(name);
-        System.out.println("#Your port is socket" + n.socket.getLocalPort());
-        n.port = n.socket.getLocalPort();
-        System.out.println("#Your port is " + n.port);
-        n.startListening();
-        n.connect();
+        Node peer = new Node(name);
+        peer.port = peer.socket.getLocalPort();
+        System.out.println("#Your port is " + peer.port);
+        peer.startListening();
+        peer.connect();
+
         while (true) {
             String message = scanner.nextLine();
-            try {
-                n.sendToAllNodes(message);
-            } catch (IOException e) {
-                e.printStackTrace();
+            if (message.equals("exit")) {
+                peer.disconnect();
+                break;
+            } else {
+                Message.sendToAllNodes(peer.socket, new Message("MESSAGE", peer.name, message, peer.vc), peer.nodes);
             }
         }
     }
