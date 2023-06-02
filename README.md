@@ -30,9 +30,11 @@ There are different approaches on how to create the network and make nodes commu
 In order to simply the process we will be using a central server that will connect nodes with each others. 
 Notice: once peers are connected they don't need the server anymore to exchange messages.
 
+First, there is a central server needed to achieve node discovery. This server will send all information about connected nodes on the network. Then the server may be shutdown, nodes on the network are still able to communicate with each others. The server is also responsible to maintain the maximum number on the network (in this case 10). The new node will broadcast all nodes on the network, him included to all nodes so they know the new node and can start communicate with him. This is the first step to develop for now.
+
 ### Node/Peer
 
-Nodes are the main components of the network since they represent an instance of the application running on a machine. In a peer-to-peer (P2P) network all of the nodes are connected with each others and share informations. Unlike the traditional client-server model they can act as both client and server. Since a node needs to communicate with other nodes, it will need its own IP address and port. A node also needs a socket, which is used to send messages with the UDP protocol. A peer must have a record of all nodes of the network so it will have an array of nodes.
+Nodes are the main components of the network since they represent an instance of the application running on a machine. In a peer-to-peer (P2P) network all of the nodes are connected with each others and share informations. Unlike the traditional client-server model they can act as both client and server. Since a node needs to communicate with other nodes, it will need its own port. A node also needs a socket, which is used to send messages with the UDP protocol and also a multicast socket in order to broadcast messages. A peer must have a record of all nodes of the network so it will have a hashmap of nodes mapping username with their port.
 
 ### Clock
 
