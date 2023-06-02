@@ -8,15 +8,37 @@ public class Node {
     private final String name;
     private final DatagramSocket socket;
     private HashMap<String, Integer> nodes;
+    private MulticastSocket multicastSocket;
+    private InetAddress group;
     private VectorClock vc;
     private int port;
+    private NodeGUI gui;
 
-    public Node(String name) throws SocketException {
+    public Node(String name, NodeGUI gui) throws IOException {
         this.name = name;
         this.socket = new DatagramSocket();
         this.nodes = new HashMap<>();
-        this.port = 0;
+        this.port = socket.getLocalPort();
         this.vc = new VectorClock(name);
+        this.multicastSocket = new MulticastSocket(1234);
+        this.group = InetAddress.getByName("233.1.1.1");
+        this.gui = gui;
+    }
+
+    public InetAddress getGroup() {
+        return group;
+    }
+
+    public MulticastSocket getMulticastSocket() {
+        return multicastSocket;
+    }
+
+    public String getName() {
+        return name;
+    }
+
+    public HashMap<String, Integer> getNodes() {
+        return nodes;
     }
 
     /**
@@ -24,7 +46,7 @@ public class Node {
      * @throws IOException if the socket is not valid
      */
     public void connect() throws IOException {
-        System.out.println("#Connecting to the network...");
+        gui.updateChatArea("#Connecting to the network...");
         Message newMessage = new Message("CONNEXION_REQUEST", name, null, null);
         Message.sendMessageObject(this.socket, newMessage,5000);
     }
@@ -37,51 +59,38 @@ public class Node {
         System.out.println("#Disconnecting from the network...");
         Message newMessage = new Message("DISCONNECT", name, Utils.hashMapToString(nodes), null);
         Message.sendMessageObject(this.socket, newMessage,5000);
-        Message.sendToAllNodes(this.socket, newMessage, nodes);
-        this.socket.close();
+        Message.broadcast(this.multicastSocket, newMessage, this.group);
+        this.multicastSocket.close();
     }
 
     /**
-     * Send a message to a specific node
+     * A node listen on its own port for incoming messages
      */
     public void startListening() {
-        AtomicBoolean shouldCloseSocket = new AtomicBoolean(false);
         new Thread(() -> {
             try {
                 byte[] buffer = new byte[1024];
                 DatagramPacket packet = new DatagramPacket(buffer, buffer.length);
-                while (!shouldCloseSocket.get()) {
+                while (true) {
                     socket.receive(packet);
                     String message = new String(packet.getData(), 0, packet.getLength());
                     Message msgObj = Message.fromString(message);
                     switch (msgObj.type()) {
+                        // when the server accepts the connection, the new node receives the list of nodes
+                        // and then sends a message to all nodes to update their list too.
                         case "CONNEXION_ACCEPTED" -> {
-                            System.out.println("#You are now connected to the network");
+                            gui.updateChatArea("#You are now connected to the network");
+                            gui.updateChatArea("#Your port is " + this.port + " and your address is " + InetAddress.getLocalHost() + "\n" + "#Multicast group: " + this.group);
                             updateNodesFromMessage(msgObj.content());
-                            Message.sendToAllNodes(this.socket, new Message("NEW_PEER", this.name, Utils.hashMapToString(nodes), vc), nodes);
+                            Message msg = new Message("NEW_PEER", this.name, Utils.hashMapToString(nodes), vc);
+                            Message.broadcast(this.multicastSocket, msg, this.group);
                         }
-                        case "MESSAGE" -> System.out.println(msgObj.sender() + ":" + msgObj.content());
-                        case "NEW_PEER" -> {
-                            System.out.println("#" + msgObj.sender() + " has joined the network");
-                            updateNodesFromMessage(msgObj.content());
-                        }
-                        case "DISCONNECT" -> {
-                            System.out.println("#" + msgObj.sender() + " has left the network");
-                            nodes.remove(msgObj.sender());
-                            // must close socket if the sender is the one who left
-                            if (msgObj.sender().equals(this.name)) {
-                                shouldCloseSocket.set(true);
-                            }
-                        }
-                        default -> System.out.println("MESSAGE NOT RECOGNIZED");
+                        case "MESSAGE" -> gui.updateChatArea(msgObj.sender() + ": " + msgObj.content());
+                        default -> System.out.println("#SOMETHING WENT WRONG...");
                     }
                 }
             } catch (IOException e) {
                 e.printStackTrace();
-            } finally {
-                if (shouldCloseSocket.get()) {
-                    socket.close();
-                }
             }
         }).start();
     }
@@ -98,35 +107,89 @@ public class Node {
         }
     }
 
-    @Override
-    public String toString() {
-        return "Node{" +
-                "name='" + name + '\'' +
-                ", socket=" + socket +
-                ", nodes=" + nodes +
-                ", vc=" + vc +
-                " port=" + port +
-                '}';
+    /**
+     * Join a multicast group to listen for multicast messages
+     * @param group the multicast group
+     * @throws IOException if the socket is not valid
+     */
+    public void joinMulticastGroup(InetAddress group) throws IOException {
+        AtomicBoolean shouldCloseSocket = new AtomicBoolean(false);
+        multicastSocket.joinGroup(group);
+        new Thread(() -> {
+            try {
+                byte[] buffer = new byte[1024];
+                DatagramPacket packet = new DatagramPacket(buffer, buffer.length);
+                while (!shouldCloseSocket.get()) {
+                    multicastSocket.receive(packet);
+                    String message = new String(packet.getData(), 0, packet.getLength());
+                    Message msgObj = Message.fromString(message);
+                    switch (msgObj.type()) {
+                        case "MULTICAST_MESSAGE" -> {
+                            gui.updateChatArea(msgObj.sender() + ":" + msgObj.content());
+                        }
+                        case "NEW_PEER" -> {
+                            gui.updateChatArea("#" + msgObj.sender() + " has joined the network");
+                            updateNodesFromMessage(msgObj.content());
+
+                        }
+                        case "DISCONNECT" -> {
+                            gui.updateChatArea("#" + msgObj.sender() + " has left the network");
+                            nodes.remove(msgObj.sender());
+                            // must close socket if the sender is the one who left
+                            if (msgObj.sender().equals(this.name)) {
+                                shouldCloseSocket.set(true);
+                            }
+                        }
+                        default -> System.out.println("#SOMETHING WENT WRONG...");
+                    }
+                }
+            } catch (IOException e) {
+                e.printStackTrace();
+            } finally {
+                if (shouldCloseSocket.get()) {
+                    multicastSocket.close();
+                }
+            }
+        }).start();
     }
 
+    @Override
+    public String toString() {
+        return "#Your name is " + this.name + "\n" + "#Your port is " + this.port + "\n" + "#Your address is " + this.socket.getLocalAddress() + "\n" + "#Multicast group: " + this.group;
+    }
+
+
+    /**
     public static void main(String[] args) throws IOException {
+
         System.out.println("#Enter your name: ");
         Scanner scanner = new Scanner(System.in);
         String name = scanner.nextLine();
-        Node peer = new Node(name);
+        NodeGUI gui = new NodeGUI();
+        Node peer = new Node(name, gui);
         peer.port = peer.socket.getLocalPort();
         System.out.println("#Your port is " + peer.port);
         peer.startListening();
         peer.connect();
+
+        peer.joinMulticastGroup(peer.group);
 
         while (true) {
             String message = scanner.nextLine();
             if (message.equals("exit")) {
                 peer.disconnect();
                 break;
+            } else if(message.equals("list")) {
+                System.out.println(peer.nodes);
+                int port = scanner.nextInt();
+                scanner.nextLine(); // prevent following "else" from being triggered
+                Message msgObj = new Message("MESSAGE", peer.name, "Hello", null);
+                Message.sendMessageObject(peer.socket, msgObj, port);
             } else {
-                Message.sendToAllNodes(peer.socket, new Message("MESSAGE", peer.name, message, peer.vc), peer.nodes);
+                Message msgObj = new Message("MULTICAST_MESSAGE", peer.name, message, null);
+                Message.broadcast(peer.multicastSocket, msgObj, peer.group);
             }
         }
     }
+    */
 }

@@ -2,6 +2,7 @@ import java.io.IOException;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.net.InetAddress;
+import java.net.MulticastSocket;
 import java.util.HashMap;
 
 public record Message(String type, String sender, String content, VectorClock vectorClock) {
@@ -42,18 +43,15 @@ public record Message(String type, String sender, String content, VectorClock ve
     }
 
     /**
-     * Sends a Message object to all nodes in a HashMap except the sender when the type is NEW_PEER
-     * @param socket the socket to send the message from
-     * @param message the message to send
-     * @param nodes the HashMap of nodes
-     * @throws IOException if the socket is not valid
+     * Broadcasts a message to all nodes in a multicast group
+     * @param socket        the socket to send the message from
+     * @param message       the message to send
+     * @param groupAddress  the multicast group address
+     * @throws IOException  if the socket is not valid
      */
-    public static void sendToAllNodes(DatagramSocket socket, Message message, HashMap<String, Integer> nodes) throws IOException {
-        for (String name : nodes.keySet()) {
-            if (name.equals(message.sender()) && message.type().equals("NEW_PEER")) continue;
-            byte[] buffer = (message.toString()).getBytes();
-            DatagramPacket packet = new DatagramPacket(buffer, buffer.length, InetAddress.getByName("localhost"), nodes.get(name));
-            socket.send(packet);
-        }
+    public static void broadcast(MulticastSocket socket, Message message, InetAddress groupAddress) throws IOException {
+        byte[] buffer = (message.toString()).getBytes();
+        DatagramPacket packet = new DatagramPacket(buffer, buffer.length, groupAddress, 1234);
+        socket.send(packet);
     }
 }

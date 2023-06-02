@@ -7,7 +7,7 @@ import java.util.Scanner;
 public class Multicast {
     public static void main(String[] args) throws IOException {
         Scanner scanner = new Scanner(System.in);
-        System.out.print("Enter multicast group address: "); // should a broadcast (233.0.0.1)
+        System.out.print("Enter multicast group address: ");
         String groupAddress = scanner.nextLine();
         System.out.print("Enter multicast group port: ");
         int groupPort = scanner.nextInt();
