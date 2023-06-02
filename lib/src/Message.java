@@ -1,31 +1,10 @@
-public class Message {
-    private final String type;
-    private final String sender;
-    private final String content;
-    private final VectorClock vectorClock;
+import java.io.IOException;
+import java.net.DatagramPacket;
+import java.net.DatagramSocket;
+import java.net.InetAddress;
+import java.util.HashMap;
 
-    public Message(String type, String sender, String content, VectorClock vectorClock) {
-        this.type = type;
-        this.sender = sender;
-        this.content = content;
-        this.vectorClock = vectorClock;
-    }
-
-    public String getContent() {
-        return content;
-    }
-
-    public VectorClock getVectorClock() {
-        return vectorClock;
-    }
-
-    public String getSender() {
-        return sender;
-    }
-
-    public String getType() {
-        return type;
-    }
+public record Message(String type, String sender, String content, VectorClock vectorClock) {
 
     public String toString() {
         return type + ":" + sender + ":" + content + ":" + vectorClock;
@@ -33,6 +12,7 @@ public class Message {
 
     /**
      * Creates a Message object from a string
+     *
      * @param message the string to parse
      * @return the Message object
      */
@@ -46,13 +26,34 @@ public class Message {
         return new Message(type, sender, content, vectorClock);
     }
 
-    public static void main(String[] args) {
-        Message message = new Message("test", "test", "test", null);
-        System.out.println(message);
-        Message message1 = Message.fromString(message.toString());
-        System.out.println(message1);
-        String test = "SERVER:bob:salut comment tu vas ?:null";
-        Message m2 = Message.fromString(test);
-        System.out.println(m2.vectorClock);
+    /**
+     * Sends a Message object to a given port from a socket
+     *
+     * @param socket          the socket to send the message from
+     * @param message         the message to send
+     * @param portDestination the port to send the message to
+     * @throws IOException    if the socket is not valid
+     */
+    public static void sendMessageObject(DatagramSocket socket, Message message, int portDestination) throws IOException {
+        byte[] buffer = (message.toString()).getBytes();
+        InetAddress address = InetAddress.getByName("localhost");
+        DatagramPacket packet = new DatagramPacket(buffer, buffer.length, address, portDestination);
+        socket.send(packet);
+    }
+
+    /**
+     * Sends a Message object to all nodes in a HashMap except the sender when the type is NEW_PEER
+     * @param socket the socket to send the message from
+     * @param message the message to send
+     * @param nodes the HashMap of nodes
+     * @throws IOException if the socket is not valid
+     */
+    public static void sendToAllNodes(DatagramSocket socket, Message message, HashMap<String, Integer> nodes) throws IOException {
+        for (String name : nodes.keySet()) {
+            if (name.equals(message.sender()) && message.type().equals("NEW_PEER")) continue;
+            byte[] buffer = (message.toString()).getBytes();
+            DatagramPacket packet = new DatagramPacket(buffer, buffer.length, InetAddress.getByName("localhost"), nodes.get(name));
+            socket.send(packet);
+        }
     }
 }
