@@ -4,9 +4,10 @@ import java.util.HashMap;
 import java.util.Scanner;
 
 public class Node {
-    private String name;
-    private DatagramSocket socket;
+    private final String name;
+    private final DatagramSocket socket;
     private HashMap<String, Integer> nodes;
+    private VectorClock vc;
     private int port;
 
     public Node(String name) throws SocketException {
@@ -14,11 +15,12 @@ public class Node {
         this.socket = new DatagramSocket();
         this.nodes = new HashMap<>();
         this.port = 0;
+        this.vc = new VectorClock();
     }
 
-    public void connect(Node n) throws IOException {
+    public void connect() throws IOException {
         System.out.println("#Connecting to server...");
-        byte[] buffer = (name + ":" + n.port).getBytes();
+        byte[] buffer = (this.name + ":" + this.socket.getLocalPort()).getBytes();
         InetAddress address = InetAddress.getByName("localhost");
         DatagramPacket packet = new DatagramPacket(buffer, buffer.length, address, 5000);
         socket.send(packet);
@@ -31,13 +33,13 @@ public class Node {
         socket.send(packet);
     }
 
-    public void startListening(DatagramSocket receiveSocket) {
+    public void startListening() {
         new Thread(() -> {
             try {
                 byte[] buffer = new byte[1024];
                 DatagramPacket packet = new DatagramPacket(buffer, buffer.length);
                 while (true) {
-                    receiveSocket.receive(packet);
+                    socket.receive(packet);
                     String message = new String(packet.getData(), 0, packet.getLength());
                     if(packet.getPort() == 5000) {
                         System.out.println("#You are now connected to the network");
@@ -67,16 +69,20 @@ public class Node {
         }
     }
 
+    public void incrementVectorClock() {
+        vc.increment(name);
+    }
+
     public static void main(String[] args) throws IOException {
         System.out.println("#Enter your name: ");
         Scanner scanner = new Scanner(System.in);
         String name = scanner.nextLine();
         Node n = new Node(name);
-        DatagramSocket receiveSocket = new DatagramSocket(0); // 0 means any random available port
-        n.port = receiveSocket.getLocalPort();
+        System.out.println("#Your port is socket" + n.socket.getLocalPort());
+        n.port = n.socket.getLocalPort();
         System.out.println("#Your port is " + n.port);
-        n.startListening(receiveSocket);
-        n.connect(n); // send information to server
+        n.startListening();
+        n.connect(); // send information to server
         while (true) {
             String message = scanner.nextLine();
             try {
