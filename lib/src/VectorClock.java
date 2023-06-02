@@ -14,7 +14,7 @@ public class VectorClock {
 
     /**
      * Increments the vector clock for a given node
-     * @param name
+     * @param name the name of the node
      */
     public void increment(String name) {
         if (vectorClock.containsKey(name)) {
@@ -26,8 +26,8 @@ public class VectorClock {
 
     /**
      * Convert a string to a VectorClock object
-     * @param vc
-     * @return
+     * @param vc the string to convert
+     * @return the VectorClock object
      */
     public static VectorClock fromString(String vc) {
         if (vc != null) {
