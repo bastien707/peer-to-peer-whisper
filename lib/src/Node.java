@@ -15,7 +15,7 @@ public class Node {
         this.socket = new DatagramSocket();
         this.nodes = new HashMap<>();
         this.port = 0;
-        this.vc = new VectorClock();
+        this.vc = new VectorClock(name);
     }
 
     public void connect() throws IOException {
@@ -73,6 +73,17 @@ public class Node {
         vc.increment(name);
     }
 
+    @Override
+    public String toString() {
+        return "Node{" +
+                "name='" + name + '\'' +
+                ", socket=" + socket +
+                ", nodes=" + nodes +
+                ", vc=" + vc +
+                " port=" + port +
+                '}';
+    }
+
     public static void main(String[] args) throws IOException {
         System.out.println("#Enter your name: ");
         Scanner scanner = new Scanner(System.in);
@@ -82,7 +93,7 @@ public class Node {
         n.port = n.socket.getLocalPort();
         System.out.println("#Your port is " + n.port);
         n.startListening();
-        n.connect(); // send information to server
+        n.connect();
         while (true) {
             String message = scanner.nextLine();
             try {
