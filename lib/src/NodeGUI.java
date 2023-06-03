@@ -33,7 +33,6 @@ public class NodeGUI {
         node = new Node(name, this);
         node.connect();
         node.startListening();
-        node.joinMulticastGroup(node.getGroup());
 
         JPanel bottomPanel = new JPanel(new BorderLayout());
         inputField = new JTextField();
@@ -67,7 +66,7 @@ public class NodeGUI {
         bottomPanel.add(sendButton, BorderLayout.EAST);
         bottomPanel.add(exitButton, BorderLayout.WEST);
 
-        nodeListButton = new JButton("Node List");
+        nodeListButton = new JButton("Update Peers");
         nodeListButton.addActionListener(e -> {
             DefaultListModel<String> listModel = new DefaultListModel<>();
             for (String nodeName : node.getNodes().keySet()) {
@@ -84,6 +83,14 @@ public class NodeGUI {
         frame.add(new JScrollPane(nodeList), BorderLayout.EAST);
 
         frame.setVisible(true);
+    }
+
+    public void updateNodeList() {
+        DefaultListModel<String> listModel = new DefaultListModel<>();
+        for (String nodeName : node.getNodes().keySet()) {
+            listModel.addElement(nodeName);
+        }
+        nodeList.setModel(listModel);
     }
 
     public void updateChatArea(String message) {

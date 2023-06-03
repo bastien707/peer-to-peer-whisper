@@ -1,19 +1,20 @@
+import javax.swing.plaf.multi.MultiListUI;
 import java.io.IOException;
 import java.net.*;
 import java.net.UnknownHostException;
+import java.sql.SQLSyntaxErrorException;
 import java.util.HashMap;
 
 public class Server {
-     private final InetAddress address;
     private final DatagramSocket socket;
      private HashMap<String, Integer> nodes;
 
-     public Server() throws UnknownHostException, SocketException {
-         this.address = InetAddress.getByName("localhost");
+     public Server() throws IOException {
+         InetAddress address = InetAddress.getByName("localhost");
          int port = 5000;
          this.nodes = new HashMap<>();
          this.socket = new DatagramSocket(port);
-         System.out.println("Server started at " + this.address + ":" + port);
+         System.out.println("Server started at " + address + ":" + port);
      }
 
     public void startListening() {
@@ -21,6 +22,8 @@ public class Server {
             try {
                 byte[] buffer = new byte[1024];
                 DatagramPacket packet = new DatagramPacket(buffer, buffer.length);
+                InetAddress group = InetAddress.getByName("233.1.1.1");
+                int multicastPort = 1234;
                 while (true) {
                     socket.receive(packet);
                     String message = new String(packet.getData(), 0, packet.getLength());
@@ -28,7 +31,9 @@ public class Server {
                     switch (msgObj.type()) {
                         case "CONNEXION_REQUEST" -> {
                             nodes.put(msgObj.sender(), packet.getPort());
-                            Message.sendMessageObject(this.socket, new Message("CONNEXION_ACCEPTED", "Server", Utils.hashMapToString(nodes), null), packet.getPort());
+                            String stringToSend = Utils.hashMapToString(nodes) + group + "/" + multicastPort;
+                            Message res = new Message("CONNEXION_ACCEPTED", "Server", stringToSend, null);
+                            Message.sendMessageObject(this.socket, res, packet.getPort());
                             System.out.println("#" + msgObj.sender() + " has joined the network");
                             System.out.println("Nodes: " + nodes);
                         }
@@ -46,7 +51,7 @@ public class Server {
         }).start();
     }
 
-    public static void main(String[] args) throws UnknownHostException, SocketException {
+    public static void main(String[] args) throws IOException {
         Server server = new Server();
         server.startListening();
     }
