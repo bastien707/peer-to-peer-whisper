@@ -3,7 +3,6 @@ import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.net.InetAddress;
 import java.net.MulticastSocket;
-import java.util.HashMap;
 
 public record Message(String type, String sender, String content, VectorClock vectorClock) {
 
