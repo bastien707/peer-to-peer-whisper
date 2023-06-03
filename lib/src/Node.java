@@ -33,8 +33,16 @@ public class Node {
         return multicastSocket;
     }
 
+    public DatagramSocket getSocket() {
+        return socket;
+    }
+
     public String getName() {
         return name;
+    }
+
+    public HashMap<String, Integer> getNodes() {
+        return nodes;
     }
 
     public void setMultiCastSocket(int port) throws IOException {
@@ -43,10 +51,6 @@ public class Node {
 
     public void setGroup(String group) throws UnknownHostException {
         this.group = InetAddress.getByName(group);
-    }
-
-    public HashMap<String, Integer> getNodes() {
-        return nodes;
     }
 
     /**
@@ -85,6 +89,7 @@ public class Node {
                     Message msgObj = Message.fromString(message);
                     switch (msgObj.type()) {
                         case "CONNECTION_ACCEPTED" -> ConnectionAccepted(msgObj);
+                        case "PRIVATE_MESSAGE" -> gui.updatePrivateChatArea(msgObj.sender() + ": " + msgObj.content(), msgObj.sender());
                         case "MESSAGE" -> gui.updateChatArea(msgObj.sender() + ": " + msgObj.content());
                         default -> System.out.println("#SOMETHING WENT WRONG...");
                     }
@@ -96,11 +101,10 @@ public class Node {
     }
 
     /**
-     * Join a multicast group to listen for multicast messages
      * When the server accepts the connection, the new node receives the list of nodes and the multicast port
      * and then sends a message to all nodes to update their list too.
-     * @param msgObj
-     * @throws IOException
+     * @param msgObj the message containing the nodes and the multicast port
+     * @throws IOException if the socket is not valid
      */
 
     public void ConnectionAccepted(Message msgObj) throws IOException {
@@ -150,11 +154,13 @@ public class Node {
                             gui.updateChatArea("#" + msgObj.sender() + " has joined the network");
                             updateNodesFromMessage(msgObj.content());
                             gui.updateNodeList();
+                            gui.updateComboBox();
                         }
                         case "DISCONNECT" -> {
                             gui.updateChatArea("#" + msgObj.sender() + " has left the network");
                             nodes.remove(msgObj.sender());
                             gui.updateNodeList(); // must update the node list after removing a node
+                            gui.updateComboBox(); // must update the combo box after removing a node
                             // must close socket if the sender is the one who left
                             if (msgObj.sender().equals(this.name)) {
                                 shouldCloseSocket.set(true);
