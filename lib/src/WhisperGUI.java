@@ -5,7 +5,7 @@ import java.awt.event.KeyEvent;
 import java.io.IOException;
 import java.util.HashMap;
 
-public class NodeGUI {
+public class WhisperGUI {
     private Node node;
     private JFrame frame;
     private JTextArea chatArea;
@@ -19,7 +19,7 @@ public class NodeGUI {
     private HashMap<String, JTextArea> privateChats; // <name, chatArea>
     private JScrollPane currentPrivateChatScrollPane;
 
-    public NodeGUI() throws IOException {
+    public WhisperGUI() throws IOException {
 
         //+-------------------------------+
         //|  Create the frame and connect |
@@ -113,11 +113,11 @@ public class NodeGUI {
 
         sendButton.addActionListener(e -> {
             String message = inputField.getText();
-            System.out.println(message);
             if (!message.isEmpty() && !message.contains(":")) {
                 try {
                     Message msg = new Message("MULTICAST_MESSAGE", node.getName(), message, null);
                     Message.broadcast(node.getMulticastSocket(), msg, node.getGroup());
+                    chatArea.append("You: " + message + "\n");
                 } catch (IOException ex) {
                     ex.printStackTrace();
                 }
@@ -154,7 +154,6 @@ public class NodeGUI {
          * the private chat area is updated to show the messages sent to the selected recipient.
          */
         comboBox.addActionListener(e -> {
-            System.out.println("Selected recipient: " + comboBox.getSelectedItem());
             String selectedRecipient = (String) comboBox.getSelectedItem();
             if (selectedRecipient != null) {
                 if (!privateChats.containsKey(selectedRecipient)) {
@@ -163,7 +162,6 @@ public class NodeGUI {
                     privateChatArea.setEditable(false);
                     privateChats.put(selectedRecipient, privateChatArea);
                 }
-                System.out.println("Updating private chat with " + selectedRecipient);
 
                 // Remove the previous JScrollPane if it exists
                 if (currentPrivateChatScrollPane != null) {
@@ -197,19 +195,12 @@ public class NodeGUI {
     }
 
     public void updatePrivateChatArea(String message, String sender) {
-        // If the private chat does with the sender does not exist, create it
-
         if (!privateChats.containsKey(sender)) {
             JTextArea privateChat = new JTextArea();
             privateChat.setEditable(false);
             privateChats.put(sender, privateChat);
         }
         privateChats.get(sender).append(message + "\n");
-
-        System.out.println("List of private chats of " + node.getName() + ":");
-        for (String s : privateChats.get(sender).getText().split("\n")) {
-            System.out.println(s);
-        }
     }
 
     public void updateChatArea(String message) {
@@ -236,7 +227,7 @@ public class NodeGUI {
     public static void main(String[] args) {
         SwingUtilities.invokeLater(() -> {
             try {
-                new NodeGUI();
+                new WhisperGUI();
             } catch (IOException e) {
                 e.printStackTrace();
             }

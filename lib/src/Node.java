@@ -1,4 +1,3 @@
-import javax.swing.*;
 import java.io.IOException;
 import java.net.*;
 import java.util.HashMap;
@@ -12,9 +11,9 @@ public class Node {
     private InetAddress group;
     private VectorClock vc;
     private int port;
-    private NodeGUI gui;
+    private WhisperGUI gui;
 
-    public Node(String name, NodeGUI gui) throws IOException {
+    public Node(String name, WhisperGUI gui) throws IOException {
         this.name = name;
         this.socket = new DatagramSocket();
         this.nodes = new HashMap<>();
@@ -148,7 +147,9 @@ public class Node {
                     Message msgObj = Message.fromString(message);
                     switch (msgObj.type()) {
                         case "MULTICAST_MESSAGE" -> {
-                            gui.updateChatArea(msgObj.sender() + ":" + msgObj.content());
+                            if (!msgObj.sender().equals(this.name)) {
+                                gui.updateChatArea(msgObj.sender() + ":" + msgObj.content());
+                            }
                         }
                         case "NEW_PEER" -> {
                             gui.updateChatArea("#" + msgObj.sender() + " has joined the network");
