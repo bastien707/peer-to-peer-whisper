@@ -105,7 +105,6 @@ public class Node {
      * @param msgObj the message containing the nodes and the multicast port
      * @throws IOException if the socket is not valid
      */
-
     public void ConnectionAccepted(Message msgObj) throws IOException {
         String[] split = msgObj.content().split("/");
         setGroup(split[1]);
