@@ -29,10 +29,10 @@ public class Server {
                     String message = new String(packet.getData(), 0, packet.getLength());
                     Message msgObj = Message.fromString(message);
                     switch (msgObj.type()) {
-                        case "CONNEXION_REQUEST" -> {
+                        case "CONNECTION_REQUEST" -> {
                             nodes.put(msgObj.sender(), packet.getPort());
                             String stringToSend = Utils.hashMapToString(nodes) + group + "/" + multicastPort;
-                            Message res = new Message("CONNEXION_ACCEPTED", "Server", stringToSend, null);
+                            Message res = new Message("CONNECTION_ACCEPTED", "Server", stringToSend, null);
                             Message.sendMessageObject(this.socket, res, packet.getPort());
                             System.out.println("#" + msgObj.sender() + " has joined the network");
                             System.out.println("Nodes: " + nodes);

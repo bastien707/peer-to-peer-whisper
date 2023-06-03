@@ -50,12 +50,12 @@ public class Node {
     }
 
     /**
-     * Connect to the network by sending a CONNEXION_REQUEST message to the auth server
+     * Connect to the network by sending a CONNECTION_REQUEST message to the auth server
      * @throws IOException if the socket is not valid
      */
     public void connect() throws IOException {
         gui.updateChatArea("#Connecting to the network...");
-        Message newMessage = new Message("CONNEXION_REQUEST", name, null, null);
+        Message newMessage = new Message("CONNECTION_REQUEST", name, null, null);
         Message.sendMessageObject(this.socket, newMessage,5000);
     }
 
@@ -84,9 +84,7 @@ public class Node {
                     String message = new String(packet.getData(), 0, packet.getLength());
                     Message msgObj = Message.fromString(message);
                     switch (msgObj.type()) {
-                        // when the server accepts the connection, the new node receives the list of nodes and the multicast port
-                        // and then sends a message to all nodes to update their list too.
-                        case "CONNEXION_ACCEPTED" -> ConnexionAccepted(msgObj);
+                        case "CONNECTION_ACCEPTED" -> ConnectionAccepted(msgObj);
                         case "MESSAGE" -> gui.updateChatArea(msgObj.sender() + ": " + msgObj.content());
                         default -> System.out.println("#SOMETHING WENT WRONG...");
                     }
@@ -97,7 +95,15 @@ public class Node {
         }).start();
     }
 
-    public void ConnexionAccepted(Message msgObj) throws IOException {
+    /**
+     * Join a multicast group to listen for multicast messages
+     * When the server accepts the connection, the new node receives the list of nodes and the multicast port
+     * and then sends a message to all nodes to update their list too.
+     * @param msgObj
+     * @throws IOException
+     */
+
+    public void ConnectionAccepted(Message msgObj) throws IOException {
         String[] split = msgObj.content().split("/");
         setGroup(split[1]);
         setMultiCastSocket(Integer.parseInt(split[2]));
