@@ -143,7 +143,7 @@ public class Node {
                         case "NEW_PEER" -> {
                             gui.updateChatArea("#" + msgObj.sender() + " has joined the network");
                             updateNodesFromMessage(msgObj.content());
-
+                            gui.updateNodeList();
                         }
                         case "DISCONNECT" -> {
                             gui.updateChatArea("#" + msgObj.sender() + " has left the network");

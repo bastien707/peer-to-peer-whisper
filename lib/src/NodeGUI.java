@@ -9,7 +9,6 @@ public class NodeGUI {
     private JTextField inputField;
     private JButton sendButton;
     private JButton exitButton;
-    private JButton nodeListButton;
     private JList<String> nodeList;
 
     public NodeGUI() throws IOException {
@@ -65,17 +64,6 @@ public class NodeGUI {
         });
         bottomPanel.add(sendButton, BorderLayout.EAST);
         bottomPanel.add(exitButton, BorderLayout.WEST);
-
-        nodeListButton = new JButton("Update Peers");
-        nodeListButton.addActionListener(e -> {
-            DefaultListModel<String> listModel = new DefaultListModel<>();
-            for (String nodeName : node.getNodes().keySet()) {
-                listModel.addElement(nodeName);
-            }
-            nodeList.setModel(listModel);
-        });
-
-        bottomPanel.add(nodeListButton, BorderLayout.SOUTH);
 
         frame.add(bottomPanel, BorderLayout.SOUTH);
 
