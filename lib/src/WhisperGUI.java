@@ -58,7 +58,7 @@ public class WhisperGUI {
         chat.setEditable(false);
         chat.append("#Welcome to Whisper Chat, " + name + "!\n");
         chat.append("#Type your message in the input field and press Send to start chatting\n");
-        chat.append("#To exit the chat, click the Exit\n\n");
+        chat.append("#To exit the chat, click the Exit\n#\n");
 
         return chat;
     }
@@ -299,6 +299,11 @@ public class WhisperGUI {
         }
 
         return username;
+    }
+
+    public void showErrorMessage(String message) {
+        JOptionPane.showMessageDialog(null, message, "Error", JOptionPane.ERROR_MESSAGE);
+        System.exit(0);
     }
 
     public static void main(String[] args) {

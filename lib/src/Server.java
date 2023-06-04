@@ -19,26 +19,18 @@ public class Server {
             try {
                 byte[] buffer = new byte[1024];
                 DatagramPacket packet = new DatagramPacket(buffer, buffer.length);
-                InetAddress group = InetAddress.getByName("233.1.1.1");
-                int multicastPort = 1234;
                 while (true) {
                     socket.receive(packet);
                     String message = new String(packet.getData(), 0, packet.getLength());
                     Message msgObj = Message.fromString(message);
                     switch (msgObj.type()) {
                         case "CONNECTION_REQUEST" -> {
-                            nodes.put(msgObj.sender(), packet.getPort());
-                            String stringToSend = Utils.hashMapToString(nodes) + group + "/" + multicastPort;
-                            Message res = new Message("CONNECTION_ACCEPTED", "Server", stringToSend, null);
-                            Message.sendMessageObject(this.socket, res, packet.getPort());
-                            System.out.println("#" + msgObj.sender() + " has joined the network");
-                            System.out.println("Nodes: " + nodes);
+                            System.out.println("#" + msgObj.sender() + " is trying to connect");
+                            if (nodes.size() == 10) handleNetworkFull(packet, msgObj);
+                            else if (nodes.containsKey(msgObj.sender())) handleNameAlreadyTaken(packet, msgObj);
+                            else handleConnectionAccepted(packet, msgObj);
                         }
-                        case "DISCONNECT" -> {
-                            nodes.remove(msgObj.sender());
-                            System.out.println("#" + msgObj.sender() + " has left the network");
-                            System.out.println("Nodes: " + nodes);
-                        }
+                        case "DISCONNECT" -> handleDisconnect(msgObj);
                         default -> System.out.println("MESSAGE NOT RECOGNIZED");
                     }
                 }
@@ -46,6 +38,35 @@ public class Server {
                 e.printStackTrace();
             }
         }).start();
+    }
+
+    private void handleNetworkFull(DatagramPacket packet, Message msgObj) throws IOException {
+        Message res = new Message("CONNECTION_DENIED", "Server", "Network is full, please try again later", null);
+        Message.sendMessageObject(this.socket, res, packet.getPort());
+        System.out.println("#" + msgObj.sender() + " has been denied access");
+    }
+
+    private void handleNameAlreadyTaken(DatagramPacket packet, Message msgObj) throws IOException  {
+        Message res = new Message("CONNECTION_DENIED", "Server", "Name already taken, find another name", null);
+        Message.sendMessageObject(this.socket, res, packet.getPort());
+        System.out.println("#" + msgObj.sender() + " has been denied access");
+    }
+
+    private void handleConnectionAccepted(DatagramPacket packet, Message msgObj) throws IOException {
+        InetAddress group = InetAddress.getByName("233.1.1.1");
+        int multicastPort = 1234;
+        nodes.put(msgObj.sender(), packet.getPort());
+        String stringToSend = Utils.hashMapToString(nodes) + group + "/" + multicastPort;
+        Message res = new Message("CONNECTION_ACCEPTED", "Server", stringToSend, null);
+        Message.sendMessageObject(this.socket, res, packet.getPort());
+        System.out.println("#" + msgObj.sender() + " has joined the network");
+        System.out.println("Nodes: " + nodes);
+    }
+
+    private void handleDisconnect(Message msgObj) {
+        nodes.remove(msgObj.sender());
+        System.out.println("#" + msgObj.sender() + " has left the network");
+        System.out.println("Nodes: " + nodes);
     }
 
     public static void main(String[] args) throws IOException {

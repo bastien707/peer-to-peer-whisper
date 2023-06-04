@@ -88,6 +88,7 @@ public class Node {
                     Message msgObj = Message.fromString(message);
                     switch (msgObj.type()) {
                         case "CONNECTION_ACCEPTED" -> ConnectionAccepted(msgObj);
+                        case "CONNECTION_DENIED" -> gui.showErrorMessage(msgObj.content());
                         case "PRIVATE_MESSAGE" -> gui.updatePrivateChatArea(msgObj.sender() + ": " + msgObj.content(), msgObj.sender());
                         case "MESSAGE" -> gui.updateChatArea(msgObj.sender() + ": " + msgObj.content());
                         default -> System.out.println("#SOMETHING WENT WRONG...");
@@ -113,7 +114,7 @@ public class Node {
         updateNodesFromMessage(split[0]);
         Message msg = new Message("NEW_PEER", this.name, Utils.hashMapToString(nodes), vc);
         Message.broadcast(this.multicastSocket, msg, this.group);
-        gui.updateChatArea("#You are now connected to the network");
+        gui.updateChatArea("#You are now connected to the network\n");
         gui.updateNodeList();
     }
 
