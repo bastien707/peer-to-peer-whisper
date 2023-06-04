@@ -40,18 +40,39 @@ public class Server {
         }).start();
     }
 
+    /**
+     * Handle a CONNECTION_REQUEST message
+     * Sends back a CONNECTION_DENIED message because the network is full
+     * @param packet the packet received
+     * @param msgObj the message object
+     * @throws IOException if the socket is not valid
+     */
     private void handleNetworkFull(DatagramPacket packet, Message msgObj) throws IOException {
         Message res = new Message("CONNECTION_DENIED", "Server", "Network is full, please try again later", null);
         Message.sendMessageObject(this.socket, res, packet.getPort());
         System.out.println("#" + msgObj.sender() + " has been denied access");
     }
 
+    /**
+     * Handle a CONNECTION_REQUEST message
+     * Sends back a CONNECTION_DENIED message because the name is already taken
+     * @param packet the packet received
+     * @param msgObj the message object
+     * @throws IOException if the socket is not valid
+     */
     private void handleNameAlreadyTaken(DatagramPacket packet, Message msgObj) throws IOException  {
         Message res = new Message("CONNECTION_DENIED", "Server", "Name already taken, find another name", null);
         Message.sendMessageObject(this.socket, res, packet.getPort());
         System.out.println("#" + msgObj.sender() + " has been denied access");
     }
 
+    /**
+     * Handle a CONNECTION_REQUEST message
+     * Sends back a CONNECTION_ACCEPTED message with the list of nodes and the multicast address
+     * @param packet the packet received
+     * @param msgObj the message object
+     * @throws IOException if the socket is not valid
+     */
     private void handleConnectionAccepted(DatagramPacket packet, Message msgObj) throws IOException {
         InetAddress group = InetAddress.getByName("233.1.1.1");
         int multicastPort = 1234;
@@ -63,6 +84,12 @@ public class Server {
         System.out.println("Nodes: " + nodes);
     }
 
+    /**
+     * Handle a DISCONNECT message
+     * Updates own list of nodes
+     * Removes the node from the list of nodes
+     * @param msgObj the message object
+     */
     private void handleDisconnect(Message msgObj) {
         nodes.remove(msgObj.sender());
         System.out.println("#" + msgObj.sender() + " has left the network");
