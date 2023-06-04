@@ -1,20 +1,17 @@
 import java.io.IOException;
 import java.net.*;
-import java.net.UnknownHostException;
 import java.util.HashMap;
 
 public class Server {
-     private final InetAddress address;
-     private final int port;
-     private final DatagramSocket socket;
-    private HashMap<String, Integer> nodes;
+    private final DatagramSocket socket;
+     private HashMap<String, Integer> nodes;
 
-     public Server() throws UnknownHostException, SocketException {
-         this.address = InetAddress.getByName("localhost");
-         this.port = 5000;
+     public Server() throws IOException {
+         InetAddress address = InetAddress.getByName("localhost");
+         int port = 5000;
          this.nodes = new HashMap<>();
          this.socket = new DatagramSocket(port);
-         System.out.println("Server started at " + this.address + ":" + this.port);
+         System.out.println("Server started at " + address + ":" + port);
      }
 
     public void startListening() {
@@ -25,14 +22,16 @@ public class Server {
                 while (true) {
                     socket.receive(packet);
                     String message = new String(packet.getData(), 0, packet.getLength());
-                    String[] parts = message.split(":");
-                    if(nodes.size() >= 10) {
-                        System.out.println("Maximum number of nodes reached");
-                    } else {
-                        System.out.println("Node " + parts[0] + " connected on port " + parts[1]);
-                        nodes.put(parts[0], Integer.parseInt(parts[1]));
-                        System.out.println(nodes);
-                        sendNodeStringNamesToNode();
+                    Message msgObj = Message.fromString(message);
+                    switch (msgObj.type()) {
+                        case "CONNECTION_REQUEST" -> {
+                            System.out.println("#" + msgObj.sender() + " is trying to connect");
+                            if (nodes.size() == 10) handleNetworkFull(packet, msgObj);
+                            else if (nodes.containsKey(msgObj.sender())) handleNameAlreadyTaken(packet, msgObj);
+                            else handleConnectionAccepted(packet, msgObj);
+                        }
+                        case "DISCONNECT" -> handleDisconnect(msgObj);
+                        default -> System.out.println("MESSAGE NOT RECOGNIZED");
                     }
                 }
             } catch (IOException e) {
@@ -41,21 +40,63 @@ public class Server {
         }).start();
     }
 
-    public void sendNodeStringNamesToNode() throws IOException {
-        StringBuilder message = new StringBuilder();
-        for (String name : nodes.keySet()) {
-            // get the node name and port and append to message
-            message.append(name).append(":").append(nodes.get(name)).append(",");
-        }
-        for (String name : nodes.keySet()) {
-            byte[] buffer = message.toString().getBytes();
-            DatagramPacket packet = new DatagramPacket(buffer, buffer.length, address, nodes.get(name));
-            socket.send(packet);
-        }
+    /**
+     * Handle a CONNECTION_REQUEST message
+     * Sends back a CONNECTION_DENIED message because the network is full
+     * @param packet the packet received
+     * @param msgObj the message object
+     * @throws IOException if the socket is not valid
+     */
+    private void handleNetworkFull(DatagramPacket packet, Message msgObj) throws IOException {
+        Message res = new Message("CONNECTION_DENIED", "Server", "Network is full, please try again later", null);
+        Message.sendMessageObject(this.socket, res, packet.getPort());
+        System.out.println("#" + msgObj.sender() + " has been denied access");
     }
 
+    /**
+     * Handle a CONNECTION_REQUEST message
+     * Sends back a CONNECTION_DENIED message because the name is already taken
+     * @param packet the packet received
+     * @param msgObj the message object
+     * @throws IOException if the socket is not valid
+     */
+    private void handleNameAlreadyTaken(DatagramPacket packet, Message msgObj) throws IOException  {
+        Message res = new Message("CONNECTION_DENIED", "Server", "Name already taken, find another name", null);
+        Message.sendMessageObject(this.socket, res, packet.getPort());
+        System.out.println("#" + msgObj.sender() + " has been denied access");
+    }
 
-    public static void main(String[] args) throws UnknownHostException, SocketException {
+    /**
+     * Handle a CONNECTION_REQUEST message
+     * Sends back a CONNECTION_ACCEPTED message with the list of nodes and the multicast address
+     * @param packet the packet received
+     * @param msgObj the message object
+     * @throws IOException if the socket is not valid
+     */
+    private void handleConnectionAccepted(DatagramPacket packet, Message msgObj) throws IOException {
+        InetAddress group = InetAddress.getByName("233.1.1.1");
+        int multicastPort = 1234;
+        nodes.put(msgObj.sender(), packet.getPort());
+        String stringToSend = Utils.hashMapToString(nodes) + group + "/" + multicastPort;
+        Message res = new Message("CONNECTION_ACCEPTED", "Server", stringToSend, null);
+        Message.sendMessageObject(this.socket, res, packet.getPort());
+        System.out.println("#" + msgObj.sender() + " has joined the network");
+        System.out.println("Nodes: " + nodes);
+    }
+
+    /**
+     * Handle a DISCONNECT message
+     * Updates own list of nodes
+     * Removes the node from the list of nodes
+     * @param msgObj the message object
+     */
+    private void handleDisconnect(Message msgObj) {
+        nodes.remove(msgObj.sender());
+        System.out.println("#" + msgObj.sender() + " has left the network");
+        System.out.println("Nodes: " + nodes);
+    }
+
+    public static void main(String[] args) throws IOException {
         Server server = new Server();
         server.startListening();
     }
