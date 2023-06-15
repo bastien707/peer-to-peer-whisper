@@ -4,12 +4,12 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Random;
 
-public class CopyNode {
+public class FifoNode {
     private String name;
     private DatagramSocket socket;
     private HashMap<String, Integer> nodes;
     private HashMap<String, Integer> delivered;
-    private int port;
+    int port;
     private int sendSeq;
     private ArrayList<Message> buffer;
 
@@ -41,7 +41,7 @@ public class CopyNode {
         }
     }
 
-    public CopyNode(String name, int port) throws IOException {
+    public FifoNode(String name, int port) throws IOException {
         this.name = name;
         this.socket = new DatagramSocket(port);
         this.nodes = new HashMap<>();
@@ -69,7 +69,7 @@ public class CopyNode {
                     // Use a separate thread for each received message to process them concurrently
                     new Thread(() -> {
                         try {
-                            int delay = random.nextInt(5000);
+                            int delay = random.nextInt(5000); // Random delay between 0 and 5000 milliseconds
                             Thread.sleep(delay);
                             onReceiving(m);
                         } catch (InterruptedException | IOException e) {
@@ -86,24 +86,23 @@ public class CopyNode {
     public void onReceiving(Message m) throws IOException {
         System.out.println("Received: " + m);
         buffer.add(m);
-        if (!delivered.containsKey(m.senderName)) delivered.put(m.senderName, 0);
+        if(!delivered.containsKey(m.senderName)) delivered.put(m.senderName, 0);
 
         boolean messageDelivered;
         do {
             messageDelivered = false;
             for (Message msg : buffer) {
-                System.out.println("clock sender: " + msg.sendSeq + " clock delivered: " + delivered.get(msg.senderName));
-                 // If the clock of the sender is equal to the clock of the receiver, then the message is delivered
-                if (delivered.get(msg.senderName) == msg.sendSeq) {
-                    delivered.put(msg.senderName, delivered.get(msg.senderName) + 1);
-                    System.out.println("Delivered: " + msg);
+                int expectedSeq = delivered.get(msg.senderName); // delivered[sender]
+                System.out.println("Expected seq: " + expectedSeq + " for " + msg);
+                if (msg.sendSeq == expectedSeq) {
                     buffer.remove(msg);
+                    delivered.put(msg.senderName, expectedSeq + 1);
+                    System.out.println("Delivered: " + msg);
                     messageDelivered = true;
                     break;
                 }
             }
-        } while (messageDelivered && !buffer.isEmpty());
-        System.out.println("Done");
+        } while (messageDelivered);
     }
 
     public void requestToBroadcast(String m, int port) throws IOException, InterruptedException {
@@ -125,18 +124,17 @@ public class CopyNode {
     }
 
     public static void main(String[] args) throws IOException, InterruptedException {
-        CopyNode bob = new CopyNode("bob", 5000);
-        CopyNode alice = new CopyNode("alice", 5001);
+        FifoNode bob = new FifoNode("bob", 5000);
+        FifoNode alice = new FifoNode("alice", 5001);
         System.out.println(bob);
         System.out.println(alice);
 
-        alice.startListening();
         bob.startListening();
+        alice.startListening();
 
         alice.requestToBroadcast("first", bob.port);
-        alice.requestToBroadcast("middle", bob.port);
+        alice.requestToBroadcast("mid", bob.port);
         alice.requestToBroadcast("last", bob.port);
-
     }
 }
 
