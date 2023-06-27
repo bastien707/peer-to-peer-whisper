@@ -52,14 +52,6 @@ The network handles different types of messages. Each message follow this standa
 - CONTENT is the string to display on the chat; can be null depending on the type of message
 - VECTOR_CLOCK is the state of the clock at the time the sender sent the message; can be null
 
-### Clock
-
-We think that the lamport clock system does not correspond to the expectations since it is not designed to provide strong consistency. Lamport clocks cannot distinguish between concurrent events that do not have a direct causal relationship. If two events occur concurrently at different nodes, their Lamport timestamps may be the same, even though they are not causally related. This lack of discrimination between concurrent events can lead to inconsistent ordering in our chat system.
-
-Lamport timestamps give the happens-before relation. We can detect the order of events that happened in a system. But the limitation is that we can’t say if A happened before B (A->B) or A and B are concurrent (A || B). To detect concurrent events, we need vectors clock.
-
-In order to maintain message ordering we will be using vector clocks and causal broadcast algorithm. When a node receives a message, it checks the vector clock attached to the message to determine if it has already received and processed the causal dependencies of the message. If not, the node waits until it has received and processed all causal dependencies before delivering the message to the application layer.
-
 ### Broadcast
 
 Using causal broadcast with vector clocks ensures that messages are delivered in the correct order and that the application layer sees a consistent view of the system state. However, it does add some overhead to the system, as each message must include a vector clock and each node must maintain a copy of the vector clock for each message it receives. Hence, to begin with, we won't be creating any vector clocks, and will simply be creating a basic broadcast function without attaching much importance to the order of the messages.
