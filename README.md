@@ -52,14 +52,21 @@ The network handles different types of messages. Each message follow this standa
 - CONTENT is the string to display on the chat; can be null depending on the type of message
 - VECTOR_CLOCK is the state of the clock at the time the sender sent the message; can be null
 
-### Clock
+## Private Messages
 
-We think that the lamport clock system does not correspond to the expectations since it is not designed to provide strong consistency. Lamport clocks cannot distinguish between concurrent events that do not have a direct causal relationship. If two events occur concurrently at different nodes, their Lamport timestamps may be the same, even though they are not causally related. This lack of discrimination between concurrent events can lead to inconsistent ordering in our chat system.
+In private messages we can use the FIFO algorithm because it’s a point to point messaging so the receiver cannot
+receive other messages between those sent by the sender. For point to point messaging, we just have to care about
+the order of the
+messages sent by one node, so a FIFO algorithm is enough. This algorithm ensures the order of the messages and the
+comprehension for both nodes.
 
-Lamport timestamps give the happens-before relation. We can detect the order of events that happened in a system. But the limitation is that we can’t say if A happened before B (A->B) or A and B are concurrent (A || B). To detect concurrent events, we need vectors clock.
-
-In order to maintain message ordering we will be using vector clocks and causal broadcast algorithm. When a node receives a message, it checks the vector clock attached to the message to determine if it has already received and processed the causal dependencies of the message. If not, the node waits until it has received and processed all causal dependencies before delivering the message to the application layer.
 
 ### Broadcast
 
-Using causal broadcast with vector clocks ensures that messages are delivered in the correct order and that the application layer sees a consistent view of the system state. However, it does add some overhead to the system, as each message must include a vector clock and each node must maintain a copy of the vector clock for each message it receives. Hence, to begin with, we won't be creating any vector clocks, and will simply be creating a basic broadcast function without attaching much importance to the order of the messages.
+We have the choice between 3 broadcast algorithms for the p2p chat system: FIFO, causal, Total. The FIFO algorithm has some drawbacks for a peer to peer messaging system. Since it follows only this sentence: If two messages are broadcasted by the same node then, all nodes will deliver these messages in the same order as they were broadcasted. This means if node A sends two messages m1 and m3, on each node m1 must arrive before m3 which is good. But the thing is that this algorithm doesn’t take into account that some messages may arrive between m1 and m3. The possibilities of valid message FIFO broadcast are (m2, m1, m3) OR (m1, m2, m3) OR (m1, m3, m2). So FIFO algorithms could lead to inconsistent orderings.
+
+To overcome this issue, we may use the causal broadcast algorithm. In this algorithm, causally related messages must be delivered in causal order, where concurrent messages can be delivered in any order.
+Causal order means the broadcasting of one message happens before broadcasting of another, those messages must be delivered in that order.
+Concurrent means two events don't know each other when they occurred.
+
+Finally, total order broadcast could also be a solution for broadcasting messages in a peer-to-peer chat system. Unlike FIFO and causal algorithms, total order broadcast guarantees that all nodes deliver messages in the same global order, regardless of the causal relationships between messages or the order of their broadcast. This means that even if messages are sent by different nodes and have no causal relationship, they will be delivered in a consistent order across all nodes.
