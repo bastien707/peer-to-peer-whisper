@@ -52,7 +52,7 @@ The network handles different types of messages. Each message follow this standa
 - CONTENT is the string to display on the chat; can be null depending on the type of message
 - VECTOR_CLOCK is the state of the clock at the time the sender sent the message; can be null
 
-## Private Messages
+### Private Messages
 
 In private messages we can use the FIFO algorithm because it’s a point to point messaging so the receiver cannot
 receive other messages between those sent by the sender. For point to point messaging, we just have to care about
