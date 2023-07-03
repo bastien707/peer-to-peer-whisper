@@ -7,8 +7,8 @@ import java.util.Random;
 public class FifoNode {
     private String name;
     private DatagramSocket socket;
-    private HashMap<String, Integer> nodes;
     private HashMap<String, Integer> delivered;
+    private int receiveSeq;
     int port;
     private int sendSeq;
     private ArrayList<Message> buffer;
@@ -44,10 +44,10 @@ public class FifoNode {
     public FifoNode(String name, int port) throws IOException {
         this.name = name;
         this.socket = new DatagramSocket(port);
-        this.nodes = new HashMap<>();
         this.port = port;
         this.delivered = new HashMap<>();
         this.sendSeq = 0;
+        this.receiveSeq = 0;
         this.buffer = new ArrayList<>();
     }
 
@@ -85,8 +85,9 @@ public class FifoNode {
 
     public void onReceiving(Message m) throws IOException {
         System.out.println("Received: " + m);
+        if (receiveSeq > m.sendSeq) return;
         buffer.add(m);
-        if(!delivered.containsKey(m.senderName)) delivered.put(m.senderName, 0);
+        if (!delivered.containsKey(m.senderName)) delivered.put(m.senderName, 0);
 
         boolean messageDelivered;
         do {
@@ -95,9 +96,10 @@ public class FifoNode {
                 int expectedSeq = delivered.get(msg.senderName); // delivered[sender]
                 System.out.println("Expected seq: " + expectedSeq + " for " + msg);
                 if (msg.sendSeq == expectedSeq) {
-                    buffer.remove(msg);
                     delivered.put(msg.senderName, expectedSeq + 1);
                     System.out.println("Delivered: " + msg);
+                    buffer.remove(msg);
+                    receiveSeq++;
                     messageDelivered = true;
                     break;
                 }
@@ -108,13 +110,15 @@ public class FifoNode {
     public void requestToBroadcast(String m, int port) throws IOException, InterruptedException {
         Message msgObj = new Message(this.name, this.sendSeq, m);
         System.out.println("Requesting to broadcast: " + msgObj);
-        Message.sendMessageObject(this.socket, msgObj, port);
+        for (int i = 0; i <= 4; i++) {
+            Message.sendMessageObject(this.socket, msgObj, port);
+        }
         this.sendSeq++;
     }
 
     @Override
     public String toString() {
-        return "NodeSim{" +
+        return "Node {" +
                 "name='" + name + '\'' +
                 ", delivered=" + delivered +
                 ", port=" + port +
@@ -132,9 +136,8 @@ public class FifoNode {
         bob.startListening();
         alice.startListening();
 
-        alice.requestToBroadcast("first", bob.port);
-        alice.requestToBroadcast("mid", bob.port);
-        alice.requestToBroadcast("last", bob.port);
+        alice.requestToBroadcast("video", bob.port);
+        alice.requestToBroadcast("text", bob.port);
     }
 }
 

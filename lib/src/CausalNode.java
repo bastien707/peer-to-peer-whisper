@@ -1,8 +1,5 @@
-import jdk.jshell.execution.Util;
-
 import java.io.IOException;
 import java.net.DatagramPacket;
-import java.net.DatagramSocket;
 import java.net.InetAddress;
 import java.net.MulticastSocket;
 import java.util.ArrayList;
@@ -12,7 +9,6 @@ import java.util.Random;
 
 public class CausalNode {
     private String name;
-    private HashMap<String, Integer> nodes;
     private HashMap<String, Integer> delivered;
     private HashMap<String, Integer> deps;
     private int sendSeq;
@@ -22,7 +18,6 @@ public class CausalNode {
 
     public CausalNode(String name, int multicastPort) throws IOException {
         this.name = name;
-        this.nodes = new HashMap<>();
         this.delivered = new HashMap<>();
         this.deps = new HashMap<>();
         this.sendSeq = 0;
@@ -60,7 +55,6 @@ public class CausalNode {
             try {
                 byte[] buffer = new byte[1024];
                 DatagramPacket packet = new DatagramPacket(buffer, buffer.length);
-                Random random = new Random();
                 while (true) {
                     multicastSocket.receive(packet);
                     String message = new String(packet.getData(), 0, packet.getLength());
@@ -80,7 +74,6 @@ public class CausalNode {
             try {
                 byte[] buffer = new byte[1024];
                 DatagramPacket packet = new DatagramPacket(buffer, buffer.length);
-                Random random = new Random();
                 while (true) {
                     multicastSocket.receive(packet);
                     String message = new String(packet.getData(), 0, packet.getLength());
